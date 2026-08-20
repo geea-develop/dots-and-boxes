@@ -1,0 +1,26 @@
+name: Bug Report
+description: Report a bug or issue with the game
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug — what did you expect vs what actually happened?
+      placeholder: "e.g. I tapped a line but nothing happened"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device / Browser
+      placeholder: "e.g. iPhone 15, Safari"
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Open the game\n2. Tap ...\n3. See error"
+    validations:
+      required: false
