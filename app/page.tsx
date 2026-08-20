@@ -3,10 +3,10 @@
 import { useState, useCallback } from "react";
 
 const GRID_SIZE = 5; // 5x5 dots = 4x4 boxes
-const CELL_SIZE = 56; // px between dots
-const DOT_SIZE = 12;
-const LINE_THICKNESS = 8;
-const TOUCH_TARGET = 24; // invisible tap area
+const CELL_SIZE = 64; // px between dots
+const DOT_SIZE = 14;
+const LINE_THICKNESS = 14;
+const TOUCH_TARGET = 28; // invisible tap area
 
 type Line = {
   row: number;
