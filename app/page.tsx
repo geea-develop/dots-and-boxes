@@ -3,26 +3,18 @@
 import { useState, useCallback } from "react";
 
 const GRID_SIZE = 5; // 5x5 dots = 4x4 boxes
-const CELL_SIZE = 70; // px between dots
-const DOT_SIZE = 14;
-const LINE_THICKNESS = 6;
-const TOUCH_TARGET = 30; // invisible tap area
 
-type Line = {
-  row: number;
-  col: number;
-  direction: "h" | "v";
-};
+type LineDir = "h" | "v";
 
-function getLineKey(line: Line): string {
-  return `${line.row}-${line.col}-${line.direction}`;
+function lineKey(row: number, col: number, dir: LineDir): string {
+  return `${row}-${col}-${dir}`;
 }
 
 export default function DotsAndBoxes() {
   const [lines, setLines] = useState<Map<string, 1 | 2>>(new Map());
   const [boxes, setBoxes] = useState<(1 | 2 | null)[][]>(
     Array.from({ length: GRID_SIZE - 1 }, () =>
-      Array.from({ length: GRID_SIZE - 1 }, () => null)
+      Array(GRID_SIZE - 1).fill(null)
     )
   );
   const [currentPlayer, setCurrentPlayer] = useState<1 | 2>(1);
@@ -31,23 +23,19 @@ export default function DotsAndBoxes() {
 
   const checkBox = useCallback(
     (row: number, col: number, newLines: Map<string, 1 | 2>): boolean => {
-      const top = getLineKey({ row, col, direction: "h" });
-      const bottom = getLineKey({ row: row + 1, col, direction: "h" });
-      const left = getLineKey({ row, col, direction: "v" });
-      const right = getLineKey({ row, col: col + 1, direction: "v" });
       return (
-        newLines.has(top) &&
-        newLines.has(bottom) &&
-        newLines.has(left) &&
-        newLines.has(right)
+        newLines.has(lineKey(row, col, "h")) &&
+        newLines.has(lineKey(row + 1, col, "h")) &&
+        newLines.has(lineKey(row, col, "v")) &&
+        newLines.has(lineKey(row, col + 1, "v"))
       );
     },
     []
   );
 
   const handleLineClick = useCallback(
-    (line: Line) => {
-      const key = getLineKey(line);
+    (row: number, col: number, dir: LineDir) => {
+      const key = lineKey(row, col, dir);
       if (lines.has(key) || gameOver) return;
 
       const newLines = new Map(lines);
@@ -55,24 +43,28 @@ export default function DotsAndBoxes() {
       setLines(newLines);
 
       let scored = false;
-      const newBoxes = boxes.map((row) => [...row]);
+      const newBoxes = boxes.map((r) => [...r]);
 
-      if (line.direction === "h") {
-        if (line.row > 0 && checkBox(line.row - 1, line.col, newLines)) {
-          newBoxes[line.row - 1][line.col] = currentPlayer;
+      if (dir === "h") {
+        // Check box above
+        if (row > 0 && checkBox(row - 1, col, newLines)) {
+          newBoxes[row - 1][col] = currentPlayer;
           scored = true;
         }
-        if (line.row < GRID_SIZE - 1 && checkBox(line.row, line.col, newLines)) {
-          newBoxes[line.row][line.col] = currentPlayer;
+        // Check box below
+        if (row < GRID_SIZE - 1 && checkBox(row, col, newLines)) {
+          newBoxes[row][col] = currentPlayer;
           scored = true;
         }
       } else {
-        if (line.col > 0 && checkBox(line.row, line.col - 1, newLines)) {
-          newBoxes[line.row][line.col - 1] = currentPlayer;
+        // Check box to the left
+        if (col > 0 && checkBox(row, col - 1, newLines)) {
+          newBoxes[row][col - 1] = currentPlayer;
           scored = true;
         }
-        if (line.col < GRID_SIZE - 1 && checkBox(line.row, line.col, newLines)) {
-          newBoxes[line.row][line.col] = currentPlayer;
+        // Check box to the right
+        if (col < GRID_SIZE - 1 && checkBox(row, col, newLines)) {
+          newBoxes[row][col] = currentPlayer;
           scored = true;
         }
       }
@@ -81,12 +73,13 @@ export default function DotsAndBoxes() {
 
       if (scored) {
         const newScores = { ...scores };
-        newScores[currentPlayer] = newBoxes.flat().filter((b) => b === currentPlayer).length;
+        newScores[currentPlayer] = newBoxes
+          .flat()
+          .filter((b) => b === currentPlayer).length;
         setScores(newScores);
 
         const totalBoxes = (GRID_SIZE - 1) * (GRID_SIZE - 1);
-        const filledBoxes = newBoxes.flat().filter((b) => b !== null).length;
-        if (filledBoxes === totalBoxes) {
+        if (newBoxes.flat().filter((b) => b !== null).length === totalBoxes) {
           setGameOver(true);
         }
       } else {
@@ -100,7 +93,7 @@ export default function DotsAndBoxes() {
     setLines(new Map());
     setBoxes(
       Array.from({ length: GRID_SIZE - 1 }, () =>
-        Array.from({ length: GRID_SIZE - 1 }, () => null)
+        Array(GRID_SIZE - 1).fill(null)
       )
     );
     setCurrentPlayer(1);
@@ -114,30 +107,131 @@ export default function DotsAndBoxes() {
     return "Tie";
   };
 
-  const boardWidth = (GRID_SIZE - 1) * CELL_SIZE + DOT_SIZE;
-  const boardHeight = (GRID_SIZE - 1) * CELL_SIZE + DOT_SIZE;
+  // Build a grid: dots at intersections, lines between them
+  // Grid has 2*GRID_SIZE - 1 rows and cols
+  // Even indices = dot rows/cols, odd indices = line rows/cols
+  const gridSize = GRID_SIZE * 2 - 1;
+
+  const renderCell = (r: number, c: number) => {
+    const isRowEven = r % 2 === 0;
+    const isColEven = c % 2 === 0;
+
+    // Dot (intersection)
+    if (isRowEven && isColEven) {
+      return (
+        <div
+          key={`${r}-${c}`}
+          className="flex items-center justify-center"
+        >
+          <div className="w-4 h-4 bg-white rounded-full" />
+        </div>
+      );
+    }
+
+    // Horizontal line
+    if (isRowEven && !isColEven) {
+      const row = r / 2;
+      const col = (c - 1) / 2;
+      const key = lineKey(row, col, "h");
+      const owner = lines.get(key);
+      const isDrawn = owner !== undefined;
+
+      return (
+        <button
+          key={`${r}-${c}`}
+          onClick={() => handleLineClick(row, col, "h")}
+          disabled={isDrawn || gameOver}
+          className={`w-full h-full flex items-center justify-center rounded-sm transition-all ${
+            !isDrawn && !gameOver ? "cursor-pointer active:scale-95" : ""
+          }`}
+          aria-label={`Horizontal line row ${row} col ${col}`}
+        >
+          <div
+            className={`w-full rounded-full transition-all ${
+              isDrawn
+                ? owner === 1
+                  ? "bg-blue-400 h-2.5 shadow-[0_0_8px_rgba(96,165,250,0.6)]"
+                  : "bg-red-400 h-2.5 shadow-[0_0_8px_rgba(248,113,113,0.6)]"
+                : "bg-gray-600 h-1.5 hover:bg-gray-400 hover:h-2.5"
+            }`}
+          />
+        </button>
+      );
+    }
+
+    // Vertical line
+    if (!isRowEven && isColEven) {
+      const row = (r - 1) / 2;
+      const col = c / 2;
+      const key = lineKey(row, col, "v");
+      const owner = lines.get(key);
+      const isDrawn = owner !== undefined;
+
+      return (
+        <button
+          key={`${r}-${c}`}
+          onClick={() => handleLineClick(row, col, "v")}
+          disabled={isDrawn || gameOver}
+          className={`w-full h-full flex items-center justify-center rounded-sm transition-all ${
+            !isDrawn && !gameOver ? "cursor-pointer active:scale-95" : ""
+          }`}
+          aria-label={`Vertical line row ${row} col ${col}`}
+        >
+          <div
+            className={`h-full rounded-full transition-all ${
+              isDrawn
+                ? owner === 1
+                  ? "bg-blue-400 w-2.5 shadow-[0_0_8px_rgba(96,165,250,0.6)]"
+                  : "bg-red-400 w-2.5 shadow-[0_0_8px_rgba(248,113,113,0.6)]"
+                : "bg-gray-600 w-1.5 hover:bg-gray-400 hover:w-2.5"
+            }`}
+          />
+        </button>
+      );
+    }
+
+    // Box center (odd row, odd col)
+    const boxRow = (r - 1) / 2;
+    const boxCol = (c - 1) / 2;
+    const owner = boxes[boxRow]?.[boxCol];
+
+    return (
+      <div
+        key={`${r}-${c}`}
+        className={`w-full h-full rounded-md transition-all duration-300 ${
+          owner === 1
+            ? "bg-blue-500/30 border border-blue-500/50"
+            : owner === 2
+            ? "bg-red-500/30 border border-red-500/50"
+            : ""
+        }`}
+      />
+    );
+  };
 
   return (
-    <div className="h-screen bg-gray-900 flex flex-col items-center justify-center p-4 overflow-hidden">
-      <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4">Dots & Boxes</h1>
+    <div className="h-screen bg-gray-900 flex flex-col items-center justify-center p-4 overflow-hidden select-none">
+      <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3">
+        Dots & Boxes
+      </h1>
 
       {/* Scoreboard */}
-      <div className="flex gap-4 sm:gap-8 mb-4 sm:mb-6">
+      <div className="flex gap-4 mb-2">
         <div
-          className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-white font-semibold text-sm sm:text-base ${
+          className={`px-4 py-2 rounded-lg text-white font-bold text-base ${
             currentPlayer === 1 && !gameOver
-              ? "bg-blue-600 ring-2 ring-blue-300"
+              ? "bg-blue-600 ring-2 ring-blue-300 scale-105"
               : "bg-gray-700"
-          }`}
+          } transition-all`}
         >
           🔵 P1: {scores[1]}
         </div>
         <div
-          className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-white font-semibold text-sm sm:text-base ${
+          className={`px-4 py-2 rounded-lg text-white font-bold text-base ${
             currentPlayer === 2 && !gameOver
-              ? "bg-red-600 ring-2 ring-red-300"
+              ? "bg-red-600 ring-2 ring-red-300 scale-105"
               : "bg-gray-700"
-          }`}
+          } transition-all`}
         >
           🔴 P2: {scores[2]}
         </div>
@@ -145,126 +239,34 @@ export default function DotsAndBoxes() {
 
       {/* Turn indicator */}
       {!gameOver && (
-        <p className="text-gray-400 text-sm mb-4">
+        <p className="text-gray-400 text-sm mb-3">
           {currentPlayer === 1 ? "🔵" : "🔴"} Player {currentPlayer}&apos;s turn
         </p>
       )}
 
-      {/* Game Board */}
-      <div className="relative" style={{ width: boardWidth, height: boardHeight }}>
-        {/* Boxes (background) */}
-        {boxes.map((row, rowIdx) =>
-          row.map((owner, colIdx) => (
-            <div
-              key={`box-${rowIdx}-${colIdx}`}
-              className="absolute rounded-sm transition-colors duration-300"
-              style={{
-                top: rowIdx * CELL_SIZE + DOT_SIZE / 2,
-                left: colIdx * CELL_SIZE + DOT_SIZE / 2,
-                width: CELL_SIZE - DOT_SIZE + LINE_THICKNESS,
-                height: CELL_SIZE - DOT_SIZE + LINE_THICKNESS,
-                backgroundColor:
-                  owner === 1
-                    ? "rgba(59, 130, 246, 0.3)"
-                    : owner === 2
-                    ? "rgba(239, 68, 68, 0.3)"
-                    : "transparent",
-              }}
-            />
-          ))
-        )}
-
-        {/* Horizontal lines */}
-        {Array.from({ length: GRID_SIZE }, (_, row) =>
-          Array.from({ length: GRID_SIZE - 1 }, (_, col) => {
-            const key = getLineKey({ row, col, direction: "h" });
-            const owner = lines.get(key);
-            const isDrawn = owner !== undefined;
-            return (
-              <button
-                key={`h-${row}-${col}`}
-                onClick={() => handleLineClick({ row, col, direction: "h" })}
-                disabled={isDrawn || gameOver}
-                className={`absolute rounded-full transition-all ${
-                  isDrawn
-                    ? owner === 1
-                      ? "bg-blue-500"
-                      : "bg-red-500"
-                    : "bg-gray-700/50 hover:bg-gray-400 active:bg-gray-300 cursor-pointer"
-                }`}
-                style={{
-                  top: row * CELL_SIZE + DOT_SIZE / 2 - LINE_THICKNESS / 2,
-                  left: col * CELL_SIZE + DOT_SIZE,
-                  width: CELL_SIZE - DOT_SIZE,
-                  height: LINE_THICKNESS,
-                  // Larger touch target
-                  padding: `${(TOUCH_TARGET - LINE_THICKNESS) / 2}px 0`,
-                  boxSizing: "content-box",
-                  marginTop: -(TOUCH_TARGET - LINE_THICKNESS) / 2,
-                }}
-                aria-label={`Horizontal line row ${row} col ${col}`}}
-              />
-            );
-          })
-        )}
-
-        {/* Vertical lines */}
-        {Array.from({ length: GRID_SIZE - 1 }, (_, row) =>
-          Array.from({ length: GRID_SIZE }, (_, col) => {
-            const key = getLineKey({ row, col, direction: "v" });
-            const owner = lines.get(key);
-            const isDrawn = owner !== undefined;
-            return (
-              <button
-                key={`v-${row}-${col}`}
-                onClick={() => handleLineClick({ row, col, direction: "v" })}
-                disabled={isDrawn || gameOver}
-                className={`absolute rounded-full transition-all ${
-                  isDrawn
-                    ? owner === 1
-                      ? "bg-blue-500"
-                      : "bg-red-500"
-                    : "bg-gray-700/50 hover:bg-gray-400 active:bg-gray-300 cursor-pointer"
-                }`}
-                style={{
-                  top: row * CELL_SIZE + DOT_SIZE,
-                  left: col * CELL_SIZE + DOT_SIZE / 2 - LINE_THICKNESS / 2,
-                  width: LINE_THICKNESS,
-                  height: CELL_SIZE - DOT_SIZE,
-                  // Larger touch target
-                  padding: `0 ${(TOUCH_TARGET - LINE_THICKNESS) / 2}px`,
-                  boxSizing: "content-box",
-                  marginLeft: -(TOUCH_TARGET - LINE_THICKNESS) / 2,
-                }}
-                aria-label={`Vertical line row ${row} col ${col}`}}
-              />
-            );
-          })
-        )}
-
-        {/* Dots */}
-        {Array.from({ length: GRID_SIZE }, (_, row) =>
-          Array.from({ length: GRID_SIZE }, (_, col) => (
-            <div
-              key={`dot-${row}-${col}`}
-              className="absolute bg-white rounded-full pointer-events-none"
-              style={{
-                top: row * CELL_SIZE,
-                left: col * CELL_SIZE,
-                width: DOT_SIZE,
-                height: DOT_SIZE,
-              }}
-            />
-          ))
+      {/* Game Board — CSS Grid */}
+      <div
+        className="grid w-full max-w-[340px] aspect-square"
+        style={{
+          gridTemplateColumns: Array.from({ length: gridSize }, (_, i) =>
+            i % 2 === 0 ? "16px" : "1fr"
+          ).join(" "),
+          gridTemplateRows: Array.from({ length: gridSize }, (_, i) =>
+            i % 2 === 0 ? "16px" : "1fr"
+          ).join(" "),
+        }}
+      >
+        {Array.from({ length: gridSize }, (_, r) =>
+          Array.from({ length: gridSize }, (_, c) => renderCell(r, c))
         )}
       </div>
 
       {/* Game Over */}
       {gameOver && (
         <div className="mt-4 text-center">
-          <p className="text-xl sm:text-2xl font-bold text-white mb-2">
+          <p className="text-xl sm:text-2xl font-bold text-white">
             {getWinner() === "Tie"
-              ? "It's a tie! 🤝"
+              ? "It&apos;s a tie! 🤝"
               : `${getWinner()} wins! 🎉`}
           </p>
         </div>
@@ -273,13 +275,13 @@ export default function DotsAndBoxes() {
       {/* Reset button */}
       <button
         onClick={resetGame}
-        className="mt-4 px-6 py-2 bg-white text-gray-900 font-semibold rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors text-sm sm:text-base"
+        className="mt-4 px-6 py-2.5 bg-white text-gray-900 font-semibold rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors"
       >
         New Game
       </button>
 
       {/* Build tag */}
-      <span className="absolute bottom-4 text-gray-700 text-[10px]">
+      <span className="absolute bottom-3 text-gray-700 text-[10px]">
         build {process.env.NEXT_PUBLIC_BUILD_ID?.slice(0, 7) || "local"} 🎲
       </span>
     </div>
