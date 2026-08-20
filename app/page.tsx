@@ -5,6 +5,29 @@ import { useState, useCallback } from "react";
 const GRID_SIZE = 5; // 5x5 dots = 4x4 boxes
 
 type LineDir = "h" | "v";
+type Theme = "classic" | "highcontrast" | "shapes";
+
+const THEMES: Record<Theme, {
+  label: string;
+  p1: { line: string; glow: string; box: string; badge: string; icon: string };
+  p2: { line: string; glow: string; box: string; badge: string; icon: string };
+}> = {
+  classic: {
+    label: "Classic",
+    p1: { line: "bg-blue-400", glow: "shadow-[0_0_8px_rgba(96,165,250,0.6)]", box: "bg-blue-500/30 border border-blue-500/50", badge: "bg-blue-600 ring-blue-300", icon: "🔵" },
+    p2: { line: "bg-red-400", glow: "shadow-[0_0_8px_rgba(248,113,113,0.6)]", box: "bg-red-500/30 border border-red-500/50", badge: "bg-red-600 ring-red-300", icon: "🔴" },
+  },
+  highcontrast: {
+    label: "High Contrast",
+    p1: { line: "bg-yellow-300", glow: "shadow-[0_0_8px_rgba(253,224,71,0.6)]", box: "bg-yellow-400/25 border border-yellow-400/50", badge: "bg-yellow-600 ring-yellow-300", icon: "🟡" },
+    p2: { line: "bg-purple-400", glow: "shadow-[0_0_8px_rgba(192,132,252,0.6)]", box: "bg-purple-500/25 border border-purple-400/50", badge: "bg-purple-600 ring-purple-300", icon: "🟣" },
+  },
+  shapes: {
+    label: "Shapes",
+    p1: { line: "bg-cyan-300", glow: "shadow-[0_0_8px_rgba(103,232,249,0.6)]", box: "bg-cyan-500/20 border-2 border-dashed border-cyan-400/60", badge: "bg-cyan-600 ring-cyan-300", icon: "▬" },
+    p2: { line: "bg-orange-400", glow: "shadow-[0_0_8px_rgba(251,146,60,0.6)]", box: "bg-orange-500/20 border-2 border-dotted border-orange-400/60", badge: "bg-orange-600 ring-orange-300", icon: "◆" },
+  },
+};
 
 function lineKey(row: number, col: number, dir: LineDir): string {
   return `${row}-${col}-${dir}`;
@@ -20,6 +43,9 @@ export default function DotsAndBoxes() {
   const [currentPlayer, setCurrentPlayer] = useState<1 | 2>(1);
   const [scores, setScores] = useState({ 1: 0, 2: 0 });
   const [gameOver, setGameOver] = useState(false);
+  const [theme, setTheme] = useState<Theme>("classic");
+
+  const colors = THEMES[theme];
 
   const checkBox = useCallback(
     (row: number, col: number, newLines: Map<string, 1 | 2>): boolean => {
@@ -46,23 +72,19 @@ export default function DotsAndBoxes() {
       const newBoxes = boxes.map((r) => [...r]);
 
       if (dir === "h") {
-        // Check box above
         if (row > 0 && checkBox(row - 1, col, newLines)) {
           newBoxes[row - 1][col] = currentPlayer;
           scored = true;
         }
-        // Check box below
         if (row < GRID_SIZE - 1 && checkBox(row, col, newLines)) {
           newBoxes[row][col] = currentPlayer;
           scored = true;
         }
       } else {
-        // Check box to the left
         if (col > 0 && checkBox(row, col - 1, newLines)) {
           newBoxes[row][col - 1] = currentPlayer;
           scored = true;
         }
-        // Check box to the right
         if (col < GRID_SIZE - 1 && checkBox(row, col, newLines)) {
           newBoxes[row][col] = currentPlayer;
           scored = true;
@@ -107,22 +129,20 @@ export default function DotsAndBoxes() {
     return "Tie";
   };
 
-  // Build a grid: dots at intersections, lines between them
-  // Grid has 2*GRID_SIZE - 1 rows and cols
-  // Even indices = dot rows/cols, odd indices = line rows/cols
   const gridSize = GRID_SIZE * 2 - 1;
+
+  const getPlayerStyle = (player: 1 | 2) => {
+    return player === 1 ? colors.p1 : colors.p2;
+  };
 
   const renderCell = (r: number, c: number) => {
     const isRowEven = r % 2 === 0;
     const isColEven = c % 2 === 0;
 
-    // Dot (intersection)
+    // Dot
     if (isRowEven && isColEven) {
       return (
-        <div
-          key={`${r}-${c}`}
-          className="flex items-center justify-center"
-        >
+        <div key={`${r}-${c}`} className="flex items-center justify-center">
           <div className="w-4 h-4 bg-white rounded-full" />
         </div>
       );
@@ -135,6 +155,7 @@ export default function DotsAndBoxes() {
       const key = lineKey(row, col, "h");
       const owner = lines.get(key);
       const isDrawn = owner !== undefined;
+      const style = owner ? getPlayerStyle(owner) : null;
 
       return (
         <button
@@ -144,14 +165,12 @@ export default function DotsAndBoxes() {
           className={`w-full h-full flex items-center justify-center rounded-sm transition-all ${
             !isDrawn && !gameOver ? "cursor-pointer active:scale-95" : ""
           }`}
-          aria-label={`Horizontal line row ${row} col ${col}`}
+          aria-label={`Horizontal line row ${row + 1} col ${col + 1}${isDrawn ? ` — Player ${owner}` : ""}`}
         >
           <div
             className={`w-full rounded-full transition-all ${
               isDrawn
-                ? owner === 1
-                  ? "bg-blue-400 h-2.5 shadow-[0_0_8px_rgba(96,165,250,0.6)]"
-                  : "bg-red-400 h-2.5 shadow-[0_0_8px_rgba(248,113,113,0.6)]"
+                ? `${style!.line} h-2.5 ${style!.glow}`
                 : "bg-gray-600 h-1.5 hover:bg-gray-400 hover:h-2.5"
             }`}
           />
@@ -166,6 +185,7 @@ export default function DotsAndBoxes() {
       const key = lineKey(row, col, "v");
       const owner = lines.get(key);
       const isDrawn = owner !== undefined;
+      const style = owner ? getPlayerStyle(owner) : null;
 
       return (
         <button
@@ -175,14 +195,12 @@ export default function DotsAndBoxes() {
           className={`w-full h-full flex items-center justify-center rounded-sm transition-all ${
             !isDrawn && !gameOver ? "cursor-pointer active:scale-95" : ""
           }`}
-          aria-label={`Vertical line row ${row} col ${col}`}
+          aria-label={`Vertical line row ${row + 1} col ${col + 1}${isDrawn ? ` — Player ${owner}` : ""}`}
         >
           <div
             className={`h-full rounded-full transition-all ${
               isDrawn
-                ? owner === 1
-                  ? "bg-blue-400 w-2.5 shadow-[0_0_8px_rgba(96,165,250,0.6)]"
-                  : "bg-red-400 w-2.5 shadow-[0_0_8px_rgba(248,113,113,0.6)]"
+                ? `${style!.line} w-2.5 ${style!.glow}`
                 : "bg-gray-600 w-1.5 hover:bg-gray-400 hover:w-2.5"
             }`}
           />
@@ -190,61 +208,81 @@ export default function DotsAndBoxes() {
       );
     }
 
-    // Box center (odd row, odd col)
+    // Box
     const boxRow = (r - 1) / 2;
     const boxCol = (c - 1) / 2;
     const owner = boxes[boxRow]?.[boxCol];
+    const style = owner ? getPlayerStyle(owner) : null;
 
     return (
       <div
         key={`${r}-${c}`}
-        className={`w-full h-full rounded-md transition-all duration-300 ${
-          owner === 1
-            ? "bg-blue-500/30 border border-blue-500/50"
-            : owner === 2
-            ? "bg-red-500/30 border border-red-500/50"
-            : ""
+        className={`w-full h-full rounded-md transition-all duration-300 flex items-center justify-center ${
+          owner ? style!.box : ""
         }`}
-      />
+      >
+        {owner && (
+          <span className="text-lg opacity-60">{getPlayerStyle(owner).icon}</span>
+        )}
+      </div>
     );
   };
 
   return (
     <div className="h-screen bg-gray-900 flex flex-col items-center justify-center p-4 overflow-hidden select-none">
-      <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3">
+      <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
         Dots & Boxes
       </h1>
+
+      {/* Theme selector */}
+      <div className="flex gap-1.5 mb-3" role="radiogroup" aria-label="Color theme">
+        {(Object.keys(THEMES) as Theme[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTheme(t)}
+            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+              theme === t
+                ? "bg-white text-gray-900"
+                : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+            }`}
+            role="radio"
+            aria-checked={theme === t}
+          >
+            {THEMES[t].label}
+          </button>
+        ))}
+      </div>
 
       {/* Scoreboard */}
       <div className="flex gap-4 mb-2">
         <div
           className={`px-4 py-2 rounded-lg text-white font-bold text-base ${
             currentPlayer === 1 && !gameOver
-              ? "bg-blue-600 ring-2 ring-blue-300 scale-105"
+              ? `${colors.p1.badge} ring-2 scale-105`
               : "bg-gray-700"
           } transition-all`}
         >
-          🔵 P1: {scores[1]}
+          {colors.p1.icon} P1: {scores[1]}
         </div>
         <div
           className={`px-4 py-2 rounded-lg text-white font-bold text-base ${
             currentPlayer === 2 && !gameOver
-              ? "bg-red-600 ring-2 ring-red-300 scale-105"
+              ? `${colors.p2.badge} ring-2 scale-105`
               : "bg-gray-700"
           } transition-all`}
         >
-          🔴 P2: {scores[2]}
+          {colors.p2.icon} P2: {scores[2]}
         </div>
       </div>
 
       {/* Turn indicator */}
       {!gameOver && (
         <p className="text-gray-400 text-sm mb-3">
-          {currentPlayer === 1 ? "🔵" : "🔴"} Player {currentPlayer}&apos;s turn
+          {currentPlayer === 1 ? colors.p1.icon : colors.p2.icon} Player {currentPlayer}&apos;s turn
         </p>
       )}
 
-      {/* Game Board — CSS Grid */}
+      {/* Game Board */}
       <div
         className="grid w-full max-w-[340px] aspect-square"
         style={{
@@ -255,6 +293,8 @@ export default function DotsAndBoxes() {
             i % 2 === 0 ? "16px" : "1fr"
           ).join(" "),
         }}
+        role="grid"
+        aria-label="Game board"
       >
         {Array.from({ length: gridSize }, (_, r) =>
           Array.from({ length: gridSize }, (_, c) => renderCell(r, c))
