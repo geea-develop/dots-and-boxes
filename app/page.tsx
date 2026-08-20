@@ -3,10 +3,10 @@
 import { useState, useCallback } from "react";
 
 const GRID_SIZE = 5; // 5x5 dots = 4x4 boxes
-const CELL_SIZE = 64; // px between dots
+const CELL_SIZE = 70; // px between dots
 const DOT_SIZE = 14;
-const LINE_THICKNESS = 14;
-const TOUCH_TARGET = 28; // invisible tap area
+const LINE_THICKNESS = 6;
+const TOUCH_TARGET = 30; // invisible tap area
 
 type Line = {
   row: number;
@@ -190,7 +190,7 @@ export default function DotsAndBoxes() {
                     ? owner === 1
                       ? "bg-blue-500"
                       : "bg-red-500"
-                    : "bg-gray-700 hover:bg-gray-400 active:bg-gray-300 cursor-pointer"
+                    : "bg-gray-700/50 hover:bg-gray-400 active:bg-gray-300 cursor-pointer"
                 }`}
                 style={{
                   top: row * CELL_SIZE + DOT_SIZE / 2 - LINE_THICKNESS / 2,
@@ -202,7 +202,7 @@ export default function DotsAndBoxes() {
                   boxSizing: "content-box",
                   marginTop: -(TOUCH_TARGET - LINE_THICKNESS) / 2,
                 }}
-                aria-label={`Horizontal line row ${row} col ${col}`}
+                aria-label={`Horizontal line row ${row} col ${col}`}}
               />
             );
           })
@@ -224,7 +224,7 @@ export default function DotsAndBoxes() {
                     ? owner === 1
                       ? "bg-blue-500"
                       : "bg-red-500"
-                    : "bg-gray-700 hover:bg-gray-400 active:bg-gray-300 cursor-pointer"
+                    : "bg-gray-700/50 hover:bg-gray-400 active:bg-gray-300 cursor-pointer"
                 }`}
                 style={{
                   top: row * CELL_SIZE + DOT_SIZE,
@@ -236,7 +236,7 @@ export default function DotsAndBoxes() {
                   boxSizing: "content-box",
                   marginLeft: -(TOUCH_TARGET - LINE_THICKNESS) / 2,
                 }}
-                aria-label={`Vertical line row ${row} col ${col}`}
+                aria-label={`Vertical line row ${row} col ${col}`}}
               />
             );
           })
