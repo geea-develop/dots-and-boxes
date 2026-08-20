@@ -1,6 +1,10 @@
-# Dots and Boxes
+# Dots & Boxes 🎲
 
-A simple two-player Dots and Boxes game built with Next.js and Tailwind CSS.
+A two-player Dots and Boxes game — mobile-friendly with touch-optimized controls.
+
+## Play
+
+👉 https://geea-develop.github.io/dots-and-boxes/
 
 ## Rules
 
@@ -8,9 +12,17 @@ A simple two-player Dots and Boxes game built with Next.js and Tailwind CSS.
 - Complete the 4th side of a box to score a point and take another turn
 - The player with the most boxes when the grid is full wins
 
-## Play
+## Features
 
-https://geea-develop.github.io/dots-and-boxes/
+- 🔵🔴 Color-coded lines per player
+- 📱 Mobile-friendly with large touch targets
+- 🎯 Clear turn indicator
+- 🔄 No-cache headers for fresh deploys
+
+## Tech Stack
+
+- Next.js 14, React 18, Tailwind CSS, TypeScript
+- GitHub Pages + GitHub Actions CI/CD
 
 ## Development
 
@@ -18,3 +30,7 @@ https://geea-develop.github.io/dots-and-boxes/
 npm install
 npm run dev
 ```
+
+## License
+
+[MIT](LICENSE)
